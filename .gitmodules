@@ -1,0 +1,3 @@
+[submodule "src/beforeUpload"]
+	path = src/beforeUpload
+	url = git@github.com:gongpeione/beforeUpload.git
