@@ -1,0 +1,11 @@
+{
+  "name": "Re.Gif",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:gongpeione/Re.Gif.git",
+  "author": "Geeku <ggongpei@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^2.6.2"
+  }
+}
