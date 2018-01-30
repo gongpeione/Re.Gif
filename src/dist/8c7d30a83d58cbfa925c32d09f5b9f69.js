@@ -65,7 +65,7 @@ require = (function (modules, cache, entry) {
 
   // Override the current require with this new one
   return newRequire;
-})({7:[function(require,module,exports) {
+})({10:[function(require,module,exports) {
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -369,7 +369,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],6:[function(require,module,exports) {
+},{}],7:[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -389,14 +389,18 @@ function addEvents(target, names, cb) {
     target.addEventListener(name, cb);
   });
 }
+const defaultOpt = {
+  pasteOnDoc: true
+};
 class BeforeUpload extends _events.EventEmitter {
   constructor(container, flag, opt) {
     super();
     this.disabled = false;
+    this.previews = [];
     this.handlers = {};
     this.container = document.querySelector(container) || document.body;
     this.flag = flag || BeforeUpload.ENABLE_CLICK | BeforeUpload.ENABLE_COPY_PASTE | BeforeUpload.ENABLE_DRAG;
-    this.opt = opt || {};
+    this.opt = Object.assign(opt, defaultOpt);
     this.inputEl = opt.inputEl || document.createElement('input');
     this.inputEl.type = 'file';
     this.inputEl.hidden = true;
@@ -441,9 +445,10 @@ class BeforeUpload extends _events.EventEmitter {
         return;
       }
       addEventsListener('paste', e => {
+        console.log(e.clipboardData.files.length);
         this.emit(e.type);
         this.files = e.clipboardData.files;
-      });
+      }, this.opt.pasteOnDoc ? document : this.container); // Recommend add paste event on document 
     }
     if (BeforeUpload.ENABLE_DRAG & this.flag) {
       addEventsListener(['dragover', 'dragleave'], e => {
@@ -483,12 +488,25 @@ class BeforeUpload extends _events.EventEmitter {
         this.container.removeEventListener(name, cb);
       });
     });
+    this.previews.forEach(url => URL.revokeObjectURL(url));
+  }
+  getPreviewList() {
+    const accpet = this.inputEl.accept.toLowerCase();
+    if (accpet.indexOf('image') === -1) {
+      throw new Error('Only images supported.');
+    }
+    this.previews = Array.from(this.files, file => {
+      return URL.createObjectURL(file);
+    });
+    return this.previews;
   }
   enable() {
+    if (!this.disabled) return;
     this.disabled = false;
     this.addEvents();
   }
   open() {
+    this.inputEl.value = '';
     this.inputEl.click();
   }
   get files() {
@@ -508,16 +526,103 @@ function setBeforeUpload(container, flag, opt) {
 }
 ;
 //# sourceMappingURL=index.js.map
-},{"events":7}],4:[function(require,module,exports) {
+},{"events":10}],11:[function(require,module,exports) {
+"use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+exports.__esModule = true;
+var events_1 = require("events");
+function dvSlice(dv, start, end) {
+    var arr = new Uint8Array(end - 1);
+    for (var i = start; i < end; i++) {
+        arr[i] = dv.getUint8(i);
+    }
+    return arr;
+}
+function arrEqual(arr1, arr2) {
+    if (arr1.length !== arr2.length) {
+        return false;
+    }
+    var l = arr1.length;
+    return arr1.every(function (v, i) { return v === arr2[i]; });
+}
+function getGifSize(num) {
+    var width = num.slice(0, 2).reverse().reduce(function (a, b) { return a + b; }, 0);
+    var height = num.slice(2, 4).reverse().reduce(function (a, b) { return a + b; }, 0);
+    return {
+        width: width, height: height
+    };
+}
+var GIF_HEADER = new Uint8Array([0x47, 0x49, 0x46]);
+var Gifer = /** @class */ (function (_super) {
+    __extends(Gifer, _super);
+    function Gifer(gif) {
+        var _this = _super.call(this) || this;
+        _this.fReader = new FileReader();
+        _this.meta = {
+            header: null,
+            logicalScreenDescriptor: null,
+            size: null,
+            hasGlobalColorTable: null,
+            colorRes: null
+        };
+        _this.fReader.readAsArrayBuffer(gif);
+        _this.fReader.addEventListener('loadend', function (e) {
+            _this.data = new DataView(_this.fReader.result);
+            _this.fReader = null;
+            _this.process();
+        });
+        return _this;
+    }
+    Gifer.prototype.process = function () {
+        this.slice = dvSlice.bind(this, this.data);
+        this.meta.header = this.slice(0, 6);
+        var headerSliced = this.meta.header.slice(0, 3);
+        if (!arrEqual(headerSliced, GIF_HEADER)) {
+            throw new Error('This is not a gif file.');
+        }
+    };
+    Gifer.prototype.setMeta = function () {
+        this.meta.header = this.slice(0, 6);
+        this.meta.logicalScreenDescriptor = this.slice(6, 13);
+        this.meta.size = getGifSize(this.meta.logicalScreenDescriptor.slice(0, 4));
+        var compressedBit = this.meta.logicalScreenDescriptor.slice(4, 5);
+        this.meta.hasGlobalColorTable = !!(compressedBit & 0x80);
+        if (this.meta.hasGlobalColorTable) {
+            this.meta.colorRes = compressedBit & 0x70;
+        }
+    };
+    return Gifer;
+}(events_1.EventEmitter));
+exports["default"] = Gifer;
+
+},{"events":10}],5:[function(require,module,exports) {
 "use strict";
 exports.__esModule = true;
 var index_1 = require("./beforeUpload/src/index");
+var Gif_1 = require("./Gif");
 var $ = document.querySelector.bind(document);
 var $$ = document.querySelectorAll.bind(document);
 var inputEl = $('#upload');
 var uploadArea = index_1["default"]('.upload-area', index_1.BeforeUpload.ENABLE_CLICK | index_1.BeforeUpload.ENABLE_DRAG | index_1.BeforeUpload.ENABLE_COPY_PASTE, { inputEl: inputEl });
+var canvas = $('main canvas');
+var ctx = canvas.getContext('2d');
+uploadArea.on('file', function (f) {
+    f = f[0];
+    var img = new Image();
+    img.src = URL.createObjectURL(f);
+    console.log(new Gif_1["default"](f));
+});
 
-},{"./beforeUpload/src/index":6}],0:[function(require,module,exports) {
+},{"./beforeUpload/src/index":7,"./Gif":11}],0:[function(require,module,exports) {
 var global = (1,eval)('this');
 var OldModule = module.bundle.Module;
 function Module() {
@@ -535,7 +640,7 @@ function Module() {
 module.bundle.Module = Module;
 
 if (!module.bundle.parent) {
-  var ws = new WebSocket('ws://localhost:60101/');
+  var ws = new WebSocket('ws://localhost:54505/');
   ws.onmessage = (e) => {
     var data = JSON.parse(e.data);
 
@@ -625,4 +730,4 @@ function hmrAccept(bundle, id) {
 
   return getParents(global.require, id).some(id => hmrAccept(global.require, id));
 }
-},{}]},{},[0,4])
+},{}]},{},[0,5])

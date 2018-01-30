@@ -13,22 +13,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 
     <meta name="theme-color" content="#363d4c">
-    <style>
-        main {
-            display: flex;
-            flex-direction: column;
-        }
-        .upload-area {
-            height: 80vh;
-            background-color: #ddd;
-        }
-    </style>
+    <link rel="stylesheet" href="./style.scss">
 </head>
 <body>
 
     <main>
         <input type="file" accept="image/gif" id="upload">
         <div class="upload-area"></div>
+        <canvas width="200" height="100"></canvas>
     </main>
 
     <script src="./index.ts"></script>
