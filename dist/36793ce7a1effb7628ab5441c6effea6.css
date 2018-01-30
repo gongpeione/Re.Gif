@@ -1,0 +1,10 @@
+body {
+  background: #eee; }
+
+main {
+  display: flex;
+  flex-direction: column; }
+
+.upload-area {
+  height: 80vh;
+  background-color: #ddd; }

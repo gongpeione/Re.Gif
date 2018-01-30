@@ -65,7 +65,7 @@ require = (function (modules, cache, entry) {
 
   // Override the current require with this new one
   return newRequire;
-})({10:[function(require,module,exports) {
+})({9:[function(require,module,exports) {
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -371,6 +371,119 @@ function isUndefined(arg) {
 
 },{}],7:[function(require,module,exports) {
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+exports.__esModule = true;
+var events_1 = require("events");
+function dvSlice(dv, start, end) {
+    var arr = new Uint8Array(end - start);
+    var arrIndex = 0;
+    for (var i = start; i < end; i++) {
+        arr[arrIndex++] = dv.getUint8(i);
+    }
+    return arr;
+}
+function arrEqual(arr1, arr2) {
+    if (arr1.length !== arr2.length) {
+        return false;
+    }
+    var l = arr1.length;
+    return arr1.every(function (v, i) { return v === arr2[i]; });
+}
+function getGifSize(num) {
+    var width = num.slice(0, 2).reverse().reduce(function (a, b) { return a + b; }, 0);
+    var height = num.slice(2, 4).reverse().reduce(function (a, b) { return a + b; }, 0);
+    return {
+        width: width, height: height
+    };
+}
+var GIF_HEADER = new Uint8Array([0x47, 0x49, 0x46]);
+var gifBinIndex = {
+    header: [0, 6],
+    logicalScreenDescriptor: [6, 13],
+    colorTable: [13]
+};
+var Gifer = /** @class */ (function (_super) {
+    __extends(Gifer, _super);
+    function Gifer(gif) {
+        var _this = _super.call(this) || this;
+        _this.fReader = new FileReader();
+        _this.meta = {
+            header: null,
+            logicalScreenDescriptor: null,
+            size: null,
+            hasGlobalColorTable: null,
+            colorRes: null,
+            sort: null,
+            globalColorTableSize: null,
+            backgroundColorIndex: null,
+            pixelAspectRatio: null,
+            colorTable: [],
+            graphicsControlExtension: null,
+            gceSize: null,
+            gcePacked: null,
+            gceDelayTime: null,
+            gceTransparentColorIndex: null
+        };
+        _this.file = gif;
+        _this.fReader.readAsArrayBuffer(gif);
+        _this.fReader.addEventListener('loadend', function (e) {
+            _this.data = new DataView(_this.fReader.result);
+            _this.fReader = null;
+            _this.process();
+        });
+        return _this;
+    }
+    Gifer.prototype.process = function () {
+        this.slice = dvSlice.bind(this, this.data);
+        this.setMeta();
+        var headerSliced = this.meta.header.slice(0, 3);
+        if (!arrEqual(headerSliced, GIF_HEADER)) {
+            throw new Error('This is not a gif file.');
+        }
+    };
+    Gifer.prototype.setMeta = function () {
+        this.meta.header = this.slice(gifBinIndex.header[0], gifBinIndex.header[1]);
+        this.meta.logicalScreenDescriptor = this.slice(gifBinIndex.logicalScreenDescriptor[0], gifBinIndex.logicalScreenDescriptor[1]);
+        this.meta.size = getGifSize(this.meta.logicalScreenDescriptor.slice(0, 4));
+        var compressedBit = this.meta.logicalScreenDescriptor.slice(4, 5);
+        this.meta.hasGlobalColorTable = !!(compressedBit >>> 7 & 0x1);
+        if (this.meta.hasGlobalColorTable) {
+            this.meta.colorRes = compressedBit >>> 4 & 0x7;
+        }
+        this.meta.sort = (compressedBit >>> 3 & 0x1) ? 'dec' : 'asc';
+        this.meta.globalColorTableSize = Math.pow(2, ((compressedBit & 0x7) + 1));
+        this.meta.backgroundColorIndex = this.meta.logicalScreenDescriptor.slice(5, 6);
+        this.meta.pixelAspectRatio = this.meta.logicalScreenDescriptor.slice(6);
+        var colorTableEnd = gifBinIndex.colorTable[0] + this.meta.globalColorTableSize * 3;
+        var allColor = this.slice(gifBinIndex.colorTable[0], colorTableEnd);
+        for (var i = 0; i < allColor.length; i += 3) {
+            this.meta.colorTable.push([
+                allColor[i],
+                allColor[i + 1],
+                allColor[i + 2]
+            ]);
+        }
+        this.meta.graphicsControlExtension = this.slice(colorTableEnd, colorTableEnd + 8 + 1);
+        this.meta.gceSize = this.meta.graphicsControlExtension.slice(2, 3);
+        this.meta.gcePacked = this.meta.graphicsControlExtension.slice(3, 4);
+        this.meta.gceDelayTime = this.meta.graphicsControlExtension.slice(4, 6);
+        this.meta.gceTransparentColorIndex = this.meta.graphicsControlExtension.slice(6, 7);
+    };
+    return Gifer;
+}(events_1.EventEmitter));
+exports["default"] = Gifer;
+
+},{"events":9}],8:[function(require,module,exports) {
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
@@ -526,91 +639,7 @@ function setBeforeUpload(container, flag, opt) {
 }
 ;
 //# sourceMappingURL=index.js.map
-},{"events":10}],11:[function(require,module,exports) {
-"use strict";
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-exports.__esModule = true;
-var events_1 = require("events");
-function dvSlice(dv, start, end) {
-    var arr = new Uint8Array(end - 1);
-    for (var i = start; i < end; i++) {
-        arr[i] = dv.getUint8(i);
-    }
-    return arr;
-}
-function arrEqual(arr1, arr2) {
-    if (arr1.length !== arr2.length) {
-        return false;
-    }
-    var l = arr1.length;
-    return arr1.every(function (v, i) { return v === arr2[i]; });
-}
-function getGifSize(num) {
-    var width = num.slice(0, 2).reverse().reduce(function (a, b) { return a + b; }, 0);
-    var height = num.slice(2, 4).reverse().reduce(function (a, b) { return a + b; }, 0);
-    return {
-        width: width, height: height
-    };
-}
-var GIF_HEADER = new Uint8Array([0x47, 0x49, 0x46]);
-var Gifer = /** @class */ (function (_super) {
-    __extends(Gifer, _super);
-    function Gifer(gif) {
-        var _this = _super.call(this) || this;
-        _this.fReader = new FileReader();
-        _this.meta = {
-            header: null,
-            logicalScreenDescriptor: null,
-            size: null,
-            hasGlobalColorTable: null,
-            colorRes: null,
-            sort: null,
-            globalColorTableSize: null
-        };
-        _this.file = gif;
-        _this.fReader.readAsArrayBuffer(gif);
-        _this.fReader.addEventListener('loadend', function (e) {
-            _this.data = new DataView(_this.fReader.result);
-            _this.fReader = null;
-            _this.process();
-        });
-        return _this;
-    }
-    Gifer.prototype.process = function () {
-        this.slice = dvSlice.bind(this, this.data);
-        this.setMeta();
-        console.log(this);
-        var headerSliced = this.meta.header.slice(0, 3);
-        if (!arrEqual(headerSliced, GIF_HEADER)) {
-            throw new Error('This is not a gif file.');
-        }
-    };
-    Gifer.prototype.setMeta = function () {
-        this.meta.header = this.slice(0, 6);
-        this.meta.logicalScreenDescriptor = this.slice(6, 13);
-        this.meta.size = getGifSize(this.meta.logicalScreenDescriptor.slice(0, 4));
-        var compressedBit = this.meta.logicalScreenDescriptor.slice(4, 5);
-        this.meta.hasGlobalColorTable = !!(compressedBit >>> 7 & 0x1);
-        if (this.meta.hasGlobalColorTable) {
-            this.meta.colorRes = compressedBit & 0x70;
-        }
-        this.meta.sort = (compressedBit >>> 4 & 0x1) ? 'dec' : 'asc';
-        this.meta.globalColorTableSize = Math.pow(2, (compressedBit & 0x7)) + 1;
-    };
-    return Gifer;
-}(events_1.EventEmitter));
-exports["default"] = Gifer;
-
-},{"events":10}],5:[function(require,module,exports) {
+},{"events":9}],6:[function(require,module,exports) {
 "use strict";
 exports.__esModule = true;
 var index_1 = require("./beforeUpload/src/index");
@@ -628,7 +657,7 @@ uploadArea.on('file', function (f) {
     console.log(new Gif_1["default"](f));
 });
 
-},{"./beforeUpload/src/index":7,"./Gif":11}],0:[function(require,module,exports) {
+},{"./Gif":7,"./beforeUpload/src/index":8}],0:[function(require,module,exports) {
 var global = (1,eval)('this');
 var OldModule = module.bundle.Module;
 function Module() {
@@ -646,7 +675,7 @@ function Module() {
 module.bundle.Module = Module;
 
 if (!module.bundle.parent) {
-  var ws = new WebSocket('ws://localhost:54505/');
+  var ws = new WebSocket('ws://localhost:57820/');
   ws.onmessage = (e) => {
     var data = JSON.parse(e.data);
 
@@ -736,4 +765,4 @@ function hmrAccept(bundle, id) {
 
   return getParents(global.require, id).some(id => hmrAccept(global.require, id));
 }
-},{}]},{},[0,5])
+},{}]},{},[0,6])
